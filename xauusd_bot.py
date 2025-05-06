@@ -1295,10 +1295,11 @@ class XAUUSDCentScalpingBot:
         report = generate_performance_report(self)
         
         # Write to file or print
+        # Write to file or print
         if output_file:
             # Create directory if it doesn't exist
             os.makedirs(os.path.dirname(output_file), exist_ok=True)
-            with open(output_file, "w") as f:
+            with open(output_file, "w", encoding="utf-8") as f:
                 f.write(report)
             print(f"Report saved to {output_file}")
         else:

@@ -1,0 +1,11 @@
+No trades to report.
+
+
+
+Pattern Recognition Analysis
+--------------------------------------------------
+Pattern recognition enabled: True
+Pattern position sizing: True
+Risk-averse entry mode: False
+
+Pattern Performance:

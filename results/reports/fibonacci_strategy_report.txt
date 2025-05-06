@@ -1,0 +1,20 @@
+No trades to report.
+
+
+
+Fibonacci Retracement Analysis
+--------------------------------------------------
+Fibonacci analysis enabled: True
+Fibonacci lookback: 50
+Swing point lookback: 10
+Trend window: 20
+Prefer Fibonacci stops: True
+
+Total signals: 249
+Confluence signals: 17 (6.8%)
+
+Fibonacci Level Performance:
+Level 0.236   :  14 trades,   0.0% win rate (0/0 completed)
+Level 0.382   :  37 trades,   0.0% win rate (0/0 completed)
+Level 0.5     :  14 trades,   0.0% win rate (0/0 completed)
+Level 0.618   :   9 trades,   0.0% win rate (0/0 completed)

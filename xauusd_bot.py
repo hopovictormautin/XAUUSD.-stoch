@@ -707,7 +707,7 @@ class XAUUSDCentScalpingBot:
                 self.trailing_stop_price = self.stop_loss_price
 
         self.position = signal
-        self.entry_time = row.name
+        self.entry_time = row.name  # Store timestamp from row index
         self.partial_exit_done = False
         
         trade = {
@@ -793,19 +793,35 @@ class XAUUSDCentScalpingBot:
         return False
 
     def check_time_based_exit(self, current_time):
-        """Check if trade should be closed based on maximum duration"""
-        if self.position is None or self.entry_time is None:
+        """
+        Check if trade should be closed based on maximum duration.
+        Strictly enforces the max_trade_duration_minutes limit.
+        """
+        if self.position is None or not hasattr(self, 'entry_time') or self.entry_time is None:
             return False
-            
-        # Calculate trade duration in minutes
-        duration = (current_time - self.entry_time).total_seconds() / 60
         
-        # Exit if trade duration exceeds maximum
-        if duration > self.max_trade_duration_minutes:
-            print(f"Time-based exit: {duration:.0f} min exceeded maximum {self.max_trade_duration_minutes} min")
-            self.signal_counts['time_exit'] += 1
-            return True
+        # Ensure both times are datetime objects
+        if isinstance(current_time, pd.Timestamp):
+            current_time = current_time.to_pydatetime()
+        if isinstance(self.entry_time, pd.Timestamp):
+            self.entry_time = self.entry_time.to_pydatetime()
+        
+        # Calculate trade duration in minutes
+        try:
+            duration = (current_time - self.entry_time).total_seconds() / 60
             
+            # Add debugging output
+            print(f"Trade duration check: {duration:.1f} minutes ({self.entry_time} to {current_time})")
+            
+            # Force exit at max duration (strictly enforced)
+            if duration >= self.max_trade_duration_minutes:
+                print(f"🔴 TIME EXIT ENFORCED: {duration:.1f} min exceeded maximum {self.max_trade_duration_minutes} min")
+                return True
+        except Exception as e:
+            print(f"Error in time exit calculation: {e}")
+            # If there's an error, default to safe behavior - exit the trade
+            return True
+        
         return False
 
     def check_partial_take_profit(self, row):
@@ -848,17 +864,15 @@ class XAUUSDCentScalpingBot:
         return False, 0
 
     def check_exit_conditions(self, row):
-        """Check if trade should be closed based on various exit conditions"""
+        """
+        Check if trade should be closed based on various exit conditions.
+        Prioritizes time-based exits to enforce maximum duration limit.
+        """
         if self.position is None:
             return False, 0, ""
-
-        # Update trailing stop if enabled
-        self.update_trailing_stop(row)
-        
-        # Check breakeven stop if enabled
-        self.check_breakeven_stop(row)
-        
-        # Check time-based exit
+            
+        # FIRST CHECK: Time-based exit (moved to top priority)
+        # This ensures time exit is checked before any other condition
         if self.check_time_based_exit(row.name):
             # Calculate current profit/loss
             if self.position == "buy":
@@ -867,7 +881,15 @@ class XAUUSDCentScalpingBot:
                 points = (self.entry_price - row["ask"]) * 1000
                 
             profit = points * self.position_size * 100
+            # Log this event prominently
+            print(f"TIME EXIT ENFORCED at {row.name}: Duration exceeded {self.max_trade_duration_minutes} minutes")
             return True, profit, "time exit"
+            
+        # Update trailing stop if enabled
+        self.update_trailing_stop(row)
+        
+        # Check breakeven stop if enabled
+        self.check_breakeven_stop(row)
         
         # Check partial take profit
         partial_hit, partial_profit = self.check_partial_take_profit(row)
@@ -904,12 +926,18 @@ class XAUUSDCentScalpingBot:
 
         return False, 0, ""
 
+
     def close_position(self, row, profit, reason):
         """Close the current position and update account/performance metrics"""
         exit_price = row["bid"] if self.position == "buy" else row["ask"]
 
         # Calculate trade duration
-        duration_minutes = (row.name - self.entry_time).total_seconds() / 60 if self.entry_time else 0
+        if hasattr(self, 'duration_override'):
+            # Use explicit duration override if available
+            duration_minutes = self.duration_override
+        else:
+            # Normal duration calculation
+            duration_minutes = (row.name - self.entry_time).total_seconds() / 60 if self.entry_time else 0
         
         # Update account balance and performance tracking
         self.current_balance += profit
@@ -952,7 +980,7 @@ class XAUUSDCentScalpingBot:
         self.partial_exit_done = False
         
         return result
-
+        
     # ───────────────────────── back-test ───────────────────────────
     def backtest(self, csv_file, *, use_timeframe=None):
         """Run backtest on historical data with improved efficiency"""
@@ -990,6 +1018,8 @@ class XAUUSDCentScalpingBot:
             # Mark low volatility periods (ATR < 0.8 * rolling mean)
             df['low_volatility'] = df['atr'] < df['atr_mean_20'] * 0.8
         
+        print(f"Maximum trade duration set to: {self.max_trade_duration_minutes} minutes")
+        
         # Run the backtest using iterrows
         for idx, row in df.iterrows():
             # Update equity curve
@@ -997,6 +1027,42 @@ class XAUUSDCentScalpingBot:
 
             # Check for exit if in a position
             if self.position is not None:
+                # First, check if we need to force a time-based exit
+                if self.entry_time is not None:
+                    try:
+                        # Calculate time difference in minutes
+                        time_diff = (idx - self.entry_time).total_seconds() / 60
+                        
+                        # Force exit if duration exceeds maximum
+                        if time_diff >= self.max_trade_duration_minutes:
+                            print(f"Force time exit at {idx}, duration: {time_diff:.1f} minutes")
+                            
+                            # Calculate profit
+                            if self.position == "buy":
+                                points = (row["bid"] - self.entry_price) * 1000
+                            else:  # sell
+                                points = (self.entry_price - row["ask"]) * 1000
+                                
+                            profit = points * self.position_size * 100
+                            
+                            # Set explicit duration override to ensure correct recording
+                            self.duration_override = self.max_trade_duration_minutes
+                            
+                            # Close position
+                            trade_res = self.close_position(row, profit, "time exit")
+                            
+                            # Remove duration override
+                            if hasattr(self, 'duration_override'):
+                                delattr(self, 'duration_override')
+                            
+                            current_trade.update(trade_res)
+                            self.trades.append(current_trade)
+                            current_trade = None
+                            continue  # Skip to next iteration
+                    except Exception as e:
+                        print(f"Error calculating duration: {e}")
+                
+                # Regular exit check
                 exit_now, profit, reason = self.check_exit_conditions(row)
                 if exit_now:
                     trade_res = self.close_position(row, profit, reason)

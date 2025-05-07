@@ -1,0 +1,30 @@
+No trades to report.
+
+
+
+Enhanced Hybrid Strategy Analysis
+--------------------------------------------------
+Hybrid strategy parameters:
+- Fibonacci analysis: True
+- Fibonacci lookback: 35
+- Swing point lookback: 8
+- Fibonacci trend window: 15
+- Prioritize 0.382 level: True
+- Prioritize 0.618 level: True
+- Fibonacci filter only: True
+- Trend confirmation: True
+- Enhanced exits: 0
+- Use multiple targets: True
+- Trailing exit factor: 1.5
+
+Standard signals: 126
+Enhanced entries: 15 (11.9%)
+Enhanced exits: 0 (0.0%)
+Fibonacci filtered signals: 33
+Trend filtered signals: 87
+Partial exits: 0 ($5278.50 profit)
+Trailing stops activated: 0
+
+Fibonacci Level Performance:
+Level 0.236   :  12 trades,  50.0% win rate (6/12 completed)
+Level 0.382   :   3 trades,  66.7% win rate (2/3 completed)

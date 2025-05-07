@@ -51,7 +51,7 @@ DEFAULT_PARAMS = {
     "trailing_distance": 25,
     "use_breakeven_stop": True,
     "breakeven_trigger_ratio": 0.4,
-    "max_trade_duration_minutes": 60,  # Reduced from 480 to 4 hours
+    "max_trade_duration_minutes": 15,  # Reduced from 480 to 4 hours
     
     # Partial profit taking
     "use_partial_take_profit": True,
